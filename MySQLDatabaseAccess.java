@@ -8,10 +8,9 @@ import java.sql.*;
 import java.io.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 /**
  *
- * @author Administrator
+ * @author Kirk Durbin
  */
 public class MySQLDatabaseAccess {
         
@@ -49,7 +48,43 @@ public class MySQLDatabaseAccess {
             System.out.println("An error has occured connecting to database.");
             e.printStackTrace();
         }
-  }      
+  }
+    
+    public static String getDBName() {
+        
+        /* This code is not used.
+         * Will be used in the future to make the CRUD more universal
+         */
+        
+        String dbName = null;
+        InputStreamReader istream = new InputStreamReader(System.in);
+        BufferedReader buffRead = new BufferedReader(istream);
+        
+        try {
+            System.out.print("Enter the name of the database to edit: ");
+            dbName = buffRead.readLine().toString();
+        }
+        catch (IOException err) {
+            System.out.println("An I/O error has occured.");
+        }
+        
+        return dbName;
+    }
+    public static String getDBPass() {
+        String dbPass = null;
+        InputStreamReader istream = new InputStreamReader(System.in);
+        BufferedReader buffRead = new BufferedReader(istream);
+        
+        try {
+            System.out.print("Enter the password for the database: ");
+            dbPass = buffRead.readLine().toString();
+        }
+        catch (IOException err) {
+            System.out.println("An I/O error has occured.");
+        }
+        
+        return dbPass;
+    }
     
     public static Connection openConnection() {
         
@@ -58,14 +93,6 @@ public class MySQLDatabaseAccess {
         // Prompt for password to access MySQL                
         InputStreamReader istream = new InputStreamReader(System.in);
         BufferedReader buffRead = new BufferedReader(istream);
-
-        try {
-            System.out.print("Please enter the password: ");
-            prompt = buffRead.readLine();
-        }
-        catch (IOException err) {
-            System.out.println("An error occured reading buffer.");
-        }
         
         // Open connection to database
         
@@ -74,7 +101,7 @@ public class MySQLDatabaseAccess {
         String dbName = "jdbc";
         String driver = "com.mysql.jdbc.Driver";
         String userName = "root";
-        String password = prompt;
+        String password = getDBPass();
         
         try {
             conn = DriverManager.getConnection(url+dbName,userName,password);
@@ -140,13 +167,33 @@ public class MySQLDatabaseAccess {
         }
     }
     
+    public static void retrieveRecords() {
+        Connection conn = openConnection();
+        
+        try {
+            Statement st = conn.createStatement();
+            ResultSet res = st.executeQuery("SELECT * FROM car");
+            System.out.println("ID" + "\t\t" + "Year" + "\t\t" + "Make" + "\t\t" + "Model");
+            
+            while (res.next()){
+                int id = res.getInt("id");
+                String year = res.getString("year");
+                String make = res.getString("make");
+                String model = res.getString("model");
+                System.out.println(id + "\t\t" + year + "\t\t" + make + "\t\t" + model);
+            }
+        }
+        catch (SQLException s) {
+            System.out.println("SQL code failed to execute.");
+        }        
+        closeConnection(conn);
+        
+        }
+    
     public static void updateRecord() {
         
         String recNum = null;
-        //String year = null;
-        //String make = null;
-        //String model = null;
-        
+
         InputStreamReader istream = new InputStreamReader(System.in);
         BufferedReader buffRead = new BufferedReader(istream);
         
@@ -180,25 +227,24 @@ public class MySQLDatabaseAccess {
                 
                 System.out.print("Enter the year: (" + year + ")");
                 newYear = buffRead.readLine().toString();
-                if ( newYear == null) {
-                    System.out.println("Default value accepted");
+                if ( newYear.isEmpty()) {
                     newYear = year;
                 }
                 
                 System.out.print("Enter the make: (" + make + ")");
                 newMake = buffRead.readLine().toString();
-                if (newMake == "") {
+                if (newMake.isEmpty()) {
                     newMake = make;
                 }
                 
                 System.out.print("Enter the model: (" + model + ")");
                 newModel = buffRead.readLine().toString();
-                if (newModel == "") {
+                if (newModel.isEmpty()) {
                     newModel = model;
                 }
                 
                 Statement st2 = conn.createStatement();
-                int val = st.executeUpdate("UPDATE car SET year='" + newYear + "', make='" + newMake + "', model='" + newModel + "' WHERE id='" + recNum + "'");
+                int val = st2.executeUpdate("UPDATE car SET year='" + newYear + "', make='" + newMake + "', model='" + newModel + "' WHERE id='" + recNum + "'");
                 System.out.println("1 row affected.");
             }
         }
@@ -214,36 +260,83 @@ public class MySQLDatabaseAccess {
             closeConnection(conn);
         }
     }
-    
-    public static void retrieveTables() {
+
+    public static void deleteRecord() {
+        
+        String recNum = null;
+       
+        InputStreamReader istream = new InputStreamReader(System.in);
+        BufferedReader buffRead = new BufferedReader(istream);
+        
+        try {
+            System.out.print("Enter record number to delete: ");
+            recNum = buffRead.readLine().toString();
+            System.out.println();
+        }
+        catch (IOException err) {
+            System.out.println("An I/O error occurred.");
+        }
+        
         Connection conn = openConnection();
         
         try {
             Statement st = conn.createStatement();
-            ResultSet res = st.executeQuery("SELECT * FROM car");
+            ResultSet res = st.executeQuery("SELECT * FROM car WHERE id = " + recNum);
             System.out.println("ID" + "\t\t" + "Year" + "\t\t" + "Make" + "\t\t" + "Model");
             
-            while (res.next()){
+            while (res.next()) {
+                String newYear = null;
+                String newMake = null;
+                String newModel = null;
+                String finalAnswer = null;
+                
                 int id = res.getInt("id");
                 String year = res.getString("year");
                 String make = res.getString("make");
                 String model = res.getString("model");
                 System.out.println(id + "\t\t" + year + "\t\t" + make + "\t\t" + model);
+                System.out.println("");
+                
+                System.out.print("Are you sure you want to delete this record?: ");
+                finalAnswer = buffRead.readLine().toString().toLowerCase();
+                if( "y".equals(finalAnswer) || "yes".equals(finalAnswer)){
+                    Statement st2 = conn.createStatement();
+                    int val = st2.executeUpdate("DELETE FROM car WHERE id = " + id);
+                    System.out.println("1 row affected.");
+                }
+                else {
+                    System.out.println("Database not affected.");
+                }
             }
         }
+        
         catch (SQLException s) {
             System.out.println("SQL code failed to execute.");
-        }        
-        closeConnection(conn);
+        } 
+        catch (IOException err) {
+            System.out.println("An I/O error has occurred.");
+        }
         
+        finally {
+            closeConnection(conn);
+        }
+    }
+       
+    public static void about() {
+        System.out.println("        MySQL CRUD");
+        System.out.println(" Written by: Kirk Durbin");
+        System.out.println("    www.kirkdurbin.com");
+        System.out.println("Bugs: kirkmdurbin@gmail.com");
     }
       
-    public static void mainMenu() {
+    public static String mainMenu() {
         String userChoice = null;
         
         InputStreamReader istream = new InputStreamReader(System.in);
         BufferedReader buffRead = new BufferedReader(istream);
         
+        System.out.println("");
+        System.out.println("+---------------------+");
         System.out.println("CRUD Main Menu");
         System.out.println("");
         System.out.println("(T)est Connection");
@@ -251,40 +344,53 @@ public class MySQLDatabaseAccess {
         System.out.println("(R)etrieve a record");
         System.out.println("(U)pdate a record");
         System.out.println("(D)elete a record");
+        System.out.println("(A)bout");
         System.out.println("(Q)uit");
+        System.out.println("+---------------------+");
         
         try {
-            System.out.print("Enter a number > ");
+            System.out.println("");
+            System.out.print("CRUD >> ");
             userChoice = buffRead.readLine().toString().toLowerCase();
            
-            if (userChoice == "t") {
+            if ("t".equalsIgnoreCase(userChoice)) {
                 testConnection();
             }
-            else if (userChoice == "c") {
+            else if ("c".equalsIgnoreCase(userChoice)) {
                 createRecord();
             }
-            else if (userChoice == "r") {
-                retrieveTables();
+            else if ("r".equalsIgnoreCase(userChoice)) {
+                retrieveRecords();
+            }
+            else if ("u".equalsIgnoreCase(userChoice)) {
+                updateRecord();
+            }
+            else if ("d".equalsIgnoreCase(userChoice)) {
+                deleteRecord();
+            }
+            else if ("a".equalsIgnoreCase(userChoice)) {
+                about();
+            }
+            else if ("q".equalsIgnoreCase(userChoice)) {
+                System.exit(0);
             }
             else {
-                System.out.println("ERROR");
-            }
-            
-            
+                System.out.println("The item you selected is invalid.");
+            }    
         }
         catch (IOException err) {
             System.out.println("An error occured during input.");
         }
+        
+        return userChoice;
     }
     
     public static void execute() {
-        
-        //mainMenu();
-        //createRecord();
-        retrieveTables();
-        //updateRecord();
-        //Connection conn = openConnection();
-        //closeConnection(conn);
+        String userChoice = null;
+
+        while (!"q".equalsIgnoreCase(userChoice)) {
+            mainMenu();
+        }
     }
     
     public static void main(String[] args) {
